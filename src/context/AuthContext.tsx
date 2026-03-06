@@ -7,6 +7,9 @@ interface User {
   role: 'user' | 'admin';
   plan: 'free' | 'pro' | 'elite';
   balance: number;
+  referralCode?: string;
+  lastDailyBonus?: string;
+  affiliateEarnings?: number;
 }
 
 interface AuthContextType {
@@ -14,7 +17,9 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   updateBalance: (newBalance: number) => void;
+  claimDailyBonus: () => Promise<void>;
   isLoading: boolean;
+  reloadUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,8 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if user is logged in
+  const fetchUser = () => {
     fetch('/api/auth/me')
       .then(res => {
         if (res.ok) return res.json();
@@ -33,6 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(data => setUser(data.user))
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchUser();
   }, []);
 
   const login = (userData: User) => setUser(userData);
@@ -46,8 +54,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const claimDailyBonus = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/auth/daily-bonus', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setUser({ ...user, balance: data.balance, lastDailyBonus: data.lastDailyBonus });
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Failed to claim bonus:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateBalance, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateBalance, claimDailyBonus, isLoading, reloadUser: fetchUser }}>
       {children}
     </AuthContext.Provider>
   );

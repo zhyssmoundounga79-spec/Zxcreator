@@ -13,10 +13,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.get('role') === 'admin') {
-      setEmail('admin@creatorforge.com');
-      setPassword('admin123');
-    }
+    // Removed auto-fill for admin demo
   }, [location]);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -24,16 +21,22 @@ export default function LoginPage() {
     setError('');
     
     try {
+      const normalizedEmail = email.toLowerCase().trim();
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
       
       const data = await res.json();
       
       if (!res.ok) throw new Error(data.error || 'Login failed');
       
+      // Enforce specific email for admin role
+      if (data.user.role === 'admin' && data.user.email.toLowerCase() !== 'zhyssmoundounga6@gmail.com') {
+        throw new Error('Accès non autorisé au Z Space');
+      }
+
       login(data.user);
       navigate(data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err: any) {
@@ -45,9 +48,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-600 to-blue-500 mb-4">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
+          <img src="/logo.svg" alt="Zxcreator Logo" className="w-12 h-12 rounded-xl mx-auto mb-4" />
           <h1 className="text-2xl font-bold">Bon retour parmi nous</h1>
           <p className="text-gray-400 mt-2">Connectez-vous pour accéder à votre espace créateur.</p>
         </div>
@@ -94,9 +95,6 @@ export default function LoginPage() {
         <p className="text-center mt-6 text-gray-500 text-sm">
           Pas encore de compte ?{' '}
           <Link to="/register" className="text-white hover:underline">S'inscrire</Link>
-        </p>
-        <p className="text-center mt-2 text-gray-600 text-xs">
-          Admin demo: admin@creatorforge.com / admin123
         </p>
       </div>
     </div>

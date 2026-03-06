@@ -1,24 +1,41 @@
 import { useState, FormEvent } from 'react';
-import { Loader2, FileText, Copy, Check, Clock } from 'lucide-react';
+import { Loader2, FileText, Copy, Check, Clock, Zap, AlertCircle, Lightbulb, Megaphone, TrendingUp, Tag, BookOpen, GraduationCap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { generateScript } from '../../services/geminiService';
+import { useSearch } from '../../context/SearchContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ScriptGenerator() {
   const [topic, setTopic] = useState('');
   const [niche, setNiche] = useState('');
   const [platform, setPlatform] = useState('TikTok');
+  const [length, setLength] = useState('Moyen (30-60s)');
+  const [tone, setTone] = useState('Éducatif');
   const [script, setScript] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const { addToHistory } = useSearch();
+  const { updateBalance } = useAuth();
 
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const result = await generateScript(topic, niche, platform);
-      if (result) setScript(result);
+      const response = await generateScript(topic, niche, platform, length, tone);
+      if (response && response.script) {
+        setScript(response.script);
+        if (response.newBalance !== undefined) {
+          updateBalance(response.newBalance);
+        }
+        addToHistory({
+          type: 'script',
+          title: `Script (${response.script.scriptType}): ${topic}`,
+          content: response.script.hook + ' ' + response.script.problem + ' ' + response.script.solution + ' ' + response.script.cta,
+        });
+      }
     } catch (error) {
       console.error(error);
+      alert('Erreur lors de la génération. Vérifiez votre solde.');
     } finally {
       setLoading(false);
     }
@@ -28,6 +45,20 @@ export default function ScriptGenerator() {
     navigator.clipboard.writeText(text);
     setCopiedSection(section);
     setTimeout(() => setCopiedSection(null), 2000);
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'text-green-400 bg-green-500/10 border-green-500/20';
+    if (score >= 70) return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+    return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+  };
+
+  const getScriptTypeIcon = (type: string) => {
+    const normalizedType = type.toLowerCase();
+    if (normalizedType.includes('education')) return <GraduationCap className="w-3.5 h-3.5 text-blue-400" />;
+    if (normalizedType.includes('story')) return <BookOpen className="w-3.5 h-3.5 text-blue-400" />;
+    if (normalizedType.includes('controvers')) return <AlertCircle className="w-3.5 h-3.5 text-blue-400" />;
+    return <Tag className="w-3.5 h-3.5 text-blue-400" />;
   };
 
   return (
@@ -66,17 +97,48 @@ export default function ScriptGenerator() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Plateforme</label>
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-black border border-zinc-700 focus:border-blue-500 focus:outline-none text-white"
-              >
-                <option value="TikTok">TikTok</option>
-                <option value="Instagram Reels">Instagram Reels</option>
-                <option value="YouTube Shorts">YouTube Shorts</option>
-              </select>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Plateforme</label>
+                <select
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-black border border-zinc-700 focus:border-blue-500 focus:outline-none text-white"
+                >
+                  <option value="TikTok">TikTok</option>
+                  <option value="Instagram Reels">Instagram Reels</option>
+                  <option value="YouTube Shorts">YouTube Shorts</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Durée</label>
+                <select
+                  value={length}
+                  onChange={(e) => setLength(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-black border border-zinc-700 focus:border-blue-500 focus:outline-none text-white"
+                >
+                  <option value="Court (< 30s)">Court (&lt; 30s)</option>
+                  <option value="Moyen (30-60s)">Moyen (30-60s)</option>
+                  <option value="Long (> 60s)">Long (&gt; 60s)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Ton</label>
+                <select
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-black border border-zinc-700 focus:border-blue-500 focus:outline-none text-white"
+                >
+                  <option value="Éducatif">Éducatif</option>
+                  <option value="Humoristique">Humoristique</option>
+                  <option value="Dramatique">Dramatique</option>
+                  <option value="Inspirant">Inspirant</option>
+                  <option value="Controversé">Controversé</option>
+                  <option value="Professionnel">Professionnel</option>
+                </select>
+              </div>
             </div>
 
             <button
@@ -104,14 +166,31 @@ export default function ScriptGenerator() {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden"
             >
-              <div className="p-4 border-b border-zinc-800 bg-zinc-950/50 flex justify-between items-center">
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  Durée estimée: {script.estimatedDuration}
+              <div className="p-4 border-b border-zinc-800 bg-zinc-950/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-400 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">
+                    <Clock className="w-4 h-4" />
+                    {script.estimatedDuration}
+                  </div>
+                  
+                  {script.scriptType && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-medium text-gray-300">
+                      {getScriptTypeIcon(script.scriptType)}
+                      {script.scriptType}
+                    </div>
+                  )}
+                  
+                  {script.viralScore && (
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold ${getScoreColor(script.viralScore)}`}>
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      Score: {script.viralScore}/100
+                    </div>
+                  )}
                 </div>
+
                 <button
                   onClick={() => copyToClipboard(`${script.hook}\n\n${script.problem}\n\n${script.solution}\n\n${script.cta}`, 'all')}
-                  className="text-xs font-bold px-3 py-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                  className="text-xs font-bold px-3 py-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors whitespace-nowrap"
                 >
                   {copiedSection === 'all' ? 'Copié !' : 'Tout copier'}
                 </button>
@@ -119,20 +198,72 @@ export default function ScriptGenerator() {
 
               <div className="p-6 space-y-6">
                 {[
-                  { label: 'HOOK (0-3s)', content: script.hook, color: 'text-pink-400', border: 'border-pink-500/20' },
-                  { label: 'PROBLÈME', content: script.problem, color: 'text-orange-400', border: 'border-orange-500/20' },
-                  { label: 'SOLUTION', content: script.solution, color: 'text-green-400', border: 'border-green-500/20' },
-                  { label: 'CALL TO ACTION', content: script.cta, color: 'text-blue-400', border: 'border-blue-500/20' }
-                ].map((section, i) => (
-                  <div key={i} className={`p-4 rounded-xl bg-black/20 border ${section.border} relative group`}>
-                    <div className={`text-xs font-bold mb-2 ${section.color}`}>{section.label}</div>
-                    <p className="text-gray-200 leading-relaxed pr-8">{section.content}</p>
-                    <button
-                      onClick={() => copyToClipboard(section.content, section.label)}
-                      className="absolute top-4 right-4 p-1.5 rounded bg-zinc-800 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
-                    >
-                      {copiedSection === section.label ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                    </button>
+                  { 
+                    id: 'hook',
+                    label: 'HOOK (0-3s)', 
+                    content: script.hook, 
+                    icon: Zap,
+                    color: 'text-pink-400', 
+                    bgColor: 'bg-pink-500/5',
+                    borderColor: 'border-pink-500/20' 
+                  },
+                  { 
+                    id: 'problem',
+                    label: 'PROBLÈME', 
+                    content: script.problem, 
+                    icon: AlertCircle,
+                    color: 'text-orange-400', 
+                    bgColor: 'bg-orange-500/5',
+                    borderColor: 'border-orange-500/20' 
+                  },
+                  { 
+                    id: 'solution',
+                    label: 'SOLUTION', 
+                    content: script.solution, 
+                    icon: Lightbulb,
+                    color: 'text-green-400', 
+                    bgColor: 'bg-green-500/5',
+                    borderColor: 'border-green-500/20' 
+                  },
+                  { 
+                    id: 'cta',
+                    label: 'CALL TO ACTION', 
+                    content: script.cta, 
+                    icon: Megaphone,
+                    color: 'text-blue-400', 
+                    bgColor: 'bg-blue-500/5',
+                    borderColor: 'border-blue-500/20' 
+                  }
+                ].map((section) => (
+                  <div key={section.id} className={`p-5 rounded-xl border ${section.borderColor} ${section.bgColor} transition-all hover:bg-opacity-80`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg bg-black/20 ${section.color}`}>
+                          <section.icon className="w-4 h-4" />
+                        </div>
+                        <h3 className={`font-bold text-sm tracking-wide ${section.color}`}>{section.label}</h3>
+                      </div>
+                      <button
+                        onClick={() => copyToClipboard(section.content, section.label)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-black/20 hover:bg-black/40 text-gray-400 hover:text-white transition-all border border-transparent hover:border-zinc-700"
+                        title="Copier cette section"
+                      >
+                        {copiedSection === section.label ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-green-400" />
+                            <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Copié</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Copier</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <div className="pl-11">
+                      <p className="text-gray-100 leading-relaxed text-base whitespace-pre-wrap font-medium">{section.content}</p>
+                    </div>
                   </div>
                 ))}
               </div>

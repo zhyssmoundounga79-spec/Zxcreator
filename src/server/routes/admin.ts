@@ -1,11 +1,28 @@
 import { Router } from 'express';
 import { db } from '../../db';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-prod';
 
-router.get('/stats', (req, res) => {
-  // In a real app, verify admin role here
-  
+// Middleware to authenticate and check admin role
+const requireAdmin = (req: any, res: any, next: any) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin only.' });
+    }
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+router.get('/stats', requireAdmin, (req, res) => {
   try {
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as any;
     const generationsCount = db.prepare('SELECT COUNT(*) as count FROM generations').get() as any;

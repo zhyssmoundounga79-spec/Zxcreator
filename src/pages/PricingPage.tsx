@@ -1,7 +1,50 @@
-import { Check, Sparkles } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Check, Sparkles, Loader } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useState } from 'react';
 
 export default function PricingPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleSubscribe = async (planOrPack: string, type: 'plan' | 'pack') => {
+    if (!user) {
+      navigate('/register');
+      return;
+    }
+
+    setLoadingPlan(planOrPack);
+
+    try {
+      const response = await fetch('/api/payment/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(type === 'plan' ? { plan: planOrPack } : { pack: planOrPack }),
+      });
+
+      if (response.status === 503) {
+        alert("Le système de paiement n'est pas configuré (Mode Démo). Veuillez contacter l'administrateur pour activer les paiements.");
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Erreur lors de la création de la session de paiement');
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Une erreur est survenue');
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navbar */}
@@ -14,10 +57,18 @@ export default function PricingPage() {
             <span className="font-bold text-xl tracking-tight">Zxcreator</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/login" className="text-white hover:text-purple-400 transition-colors">Connexion</Link>
-            <Link to="/register" className="bg-white text-black px-4 py-2 rounded-full hover:bg-gray-200 transition-colors text-sm font-bold">
-              Commencer
-            </Link>
+            {user ? (
+              <Link to="/dashboard" className="bg-white text-black px-4 py-2 rounded-full hover:bg-gray-200 transition-colors text-sm font-bold">
+                Tableau de bord
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="text-white hover:text-purple-400 transition-colors">Connexion</Link>
+                <Link to="/register" className="bg-white text-black px-4 py-2 rounded-full hover:bg-gray-200 transition-colors text-sm font-bold">
+                  Commencer
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -45,9 +96,15 @@ export default function PricingPage() {
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Support communautaire</li>
               </ul>
               
-              <Link to="/register" className="block w-full py-4 text-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors font-bold">
-                Commencer Gratuitement
-              </Link>
+              {user ? (
+                <button disabled className="block w-full py-4 text-center rounded-xl bg-zinc-800 text-gray-500 font-bold cursor-not-allowed">
+                  Plan Actuel
+                </button>
+              ) : (
+                <Link to="/register" className="block w-full py-4 text-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors font-bold">
+                  Commencer Gratuitement
+                </Link>
+              )}
             </div>
 
             {/* Pro Plan */}
@@ -60,14 +117,19 @@ export default function PricingPage() {
               <ul className="space-y-4 mb-8 flex-1">
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> <strong>Idées illimitées</strong></li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> <strong>Scripts illimités</strong></li>
+                <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> <strong>500 Crédits / mois</strong> <span className="text-xs text-gray-500">(~30 vidéos)</span></li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Pas de publicité</li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Analyse avancée</li>
-                <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Support prioritaire</li>
               </ul>
               
-              <Link to="/register" className="block w-full py-4 text-center rounded-xl bg-purple-600 hover:bg-purple-700 transition-colors font-bold shadow-lg shadow-purple-600/25">
-                Devenir Pro
-              </Link>
+              <button 
+                onClick={() => handleSubscribe('pro', 'plan')}
+                disabled={loadingPlan === 'pro'}
+                className="block w-full py-4 text-center rounded-xl bg-purple-600 hover:bg-purple-700 transition-colors font-bold shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2"
+              >
+                {loadingPlan === 'pro' && <Loader className="w-4 h-4 animate-spin" />}
+                {user?.plan === 'pro' ? 'Gérer mon abonnement' : 'Devenir Pro'}
+              </button>
             </div>
 
             {/* Elite Plan */}
@@ -78,16 +140,71 @@ export default function PricingPage() {
               
               <ul className="space-y-4 mb-8 flex-1">
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Tout du plan Pro</li>
+                <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> <strong>2500 Crédits / mois</strong> <span className="text-xs text-gray-500">(~150 vidéos)</span></li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> <strong>Algorithme prédictif</strong></li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Accès anticipé tendances</li>
-                <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Coaching IA personnalisé</li>
                 <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-purple-500" /> Templates premium</li>
               </ul>
               
-              <Link to="/register" className="block w-full py-4 text-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors font-bold">
-                Passer Elite
-              </Link>
+              <button 
+                onClick={() => handleSubscribe('elite', 'plan')}
+                disabled={loadingPlan === 'elite'}
+                className="block w-full py-4 text-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors font-bold flex items-center justify-center gap-2"
+              >
+                {loadingPlan === 'elite' && <Loader className="w-4 h-4 animate-spin" />}
+                {user?.plan === 'elite' ? 'Gérer mon abonnement' : 'Passer Elite'}
+              </button>
             </div>
+          </div>
+
+          {/* Credit Packs Section */}
+          <div className="mt-24 max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl font-bold mb-8">Besoin de plus de crédits ?</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="p-6 rounded-xl bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition-colors">
+                <div className="text-xl font-bold mb-2">Pack Découverte</div>
+                <div className="text-3xl font-bold text-purple-400 mb-2">5€</div>
+                <div className="text-gray-400 mb-4">100 Crédits</div>
+                <button 
+                  onClick={() => handleSubscribe('discovery', 'pack')}
+                  disabled={loadingPlan === 'discovery'}
+                  className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm font-bold flex items-center justify-center gap-2"
+                >
+                  {loadingPlan === 'discovery' && <Loader className="w-4 h-4 animate-spin" />}
+                  Acheter
+                </button>
+              </div>
+              <div className="p-6 rounded-xl bg-zinc-900/50 border border-purple-500/30 hover:border-purple-500 transition-colors relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-purple-600 text-[10px] font-bold px-2 py-1 rounded-bl-lg">POPULAIRE</div>
+                <div className="text-xl font-bold mb-2">Pack Créateur</div>
+                <div className="text-3xl font-bold text-purple-400 mb-2">20€</div>
+                <div className="text-gray-400 mb-4">500 Crédits <span className="text-green-400 text-xs ml-1">+10% offert</span></div>
+                <button 
+                  onClick={() => handleSubscribe('creator', 'pack')}
+                  disabled={loadingPlan === 'creator'}
+                  className="w-full py-2 rounded-lg bg-purple-600 hover:bg-purple-500 transition-colors text-sm font-bold flex items-center justify-center gap-2"
+                >
+                  {loadingPlan === 'creator' && <Loader className="w-4 h-4 animate-spin" />}
+                  Acheter
+                </button>
+              </div>
+              <div className="p-6 rounded-xl bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition-colors">
+                <div className="text-xl font-bold mb-2">Pack Studio</div>
+                <div className="text-3xl font-bold text-purple-400 mb-2">50€</div>
+                <div className="text-gray-400 mb-4">1500 Crédits <span className="text-green-400 text-xs ml-1">+20% offert</span></div>
+                <button 
+                  onClick={() => handleSubscribe('studio', 'pack')}
+                  disabled={loadingPlan === 'studio'}
+                  className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm font-bold flex items-center justify-center gap-2"
+                >
+                  {loadingPlan === 'studio' && <Loader className="w-4 h-4 animate-spin" />}
+                  Acheter
+                </button>
+              </div>
+            </div>
+            <p className="mt-6 text-sm text-gray-500">
+              1 Crédit ≈ 0.05€. Les crédits n'expirent jamais tant que votre compte est actif.
+            </p>
           </div>
         </div>
       </div>

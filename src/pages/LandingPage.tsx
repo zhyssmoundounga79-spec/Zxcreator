@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowRight, Sparkles, Zap, TrendingUp, Check, Crown } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, TrendingUp, Check, Crown, Star, Quote } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -9,15 +9,14 @@ export default function LandingPage() {
       <nav className="fixed w-full z-50 bg-black/50 backdrop-blur-md border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.svg" alt="Zxcreator Logo" className="w-8 h-8 rounded-lg" />
             <span className="font-bold text-xl tracking-tight">Zxcreator</span>
           </div>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
             <a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a>
+            <a href="#testimonials" className="hover:text-white transition-colors">Témoignages</a>
             <a href="#pricing" className="hover:text-white transition-colors">Tarifs</a>
             <Link to="/login" className="text-white hover:text-purple-400 transition-colors">Connexion</Link>
             <Link to="/register" className="bg-white text-black px-4 py-2 rounded-full hover:bg-gray-200 transition-colors">
@@ -109,6 +108,76 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
                 <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section id="testimonials" className="py-24 px-6 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">Ils ont explosé leurs vues</h2>
+            <p className="text-gray-400">Rejoignez des milliers de créateurs qui utilisent Zxcreator au quotidien.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Sophie Martin",
+                role: "Créatrice TikTok (500k abonnés)",
+                quote: "Zxcreator a complètement changé ma façon de travailler. Je ne perds plus des heures à chercher des idées.",
+                avatar: "https://picsum.photos/seed/sophie/100/100",
+                stars: 5
+              },
+              {
+                name: "Thomas Dubois",
+                role: "Entrepreneur YouTube",
+                quote: "Les scripts générés sont incroyablement structurés. J'ai doublé mon taux de rétention en un mois.",
+                avatar: "https://picsum.photos/seed/thomas/100/100",
+                stars: 5
+              },
+              {
+                name: "Léa Bernard",
+                role: "Influenceuse Lifestyle",
+                quote: "L'outil de hooks est magique. Mes vues ont explosé dès que j'ai commencé à l'utiliser.",
+                avatar: "https://picsum.photos/seed/lea/100/100",
+                stars: 4
+              }
+            ].map((testimonial, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 relative"
+              >
+                <Quote className="absolute top-6 right-6 w-8 h-8 text-purple-500/20" />
+                <div className="flex items-center gap-1 mb-4">
+                  {[...Array(5)].map((_, j) => (
+                    <Star 
+                      key={j} 
+                      className={`w-4 h-4 ${j < testimonial.stars ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'}`} 
+                    />
+                  ))}
+                </div>
+                <p className="text-gray-300 mb-6 italic">"{testimonial.quote}"</p>
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={testimonial.avatar} 
+                    alt={testimonial.name} 
+                    className="w-12 h-12 rounded-full border-2 border-purple-500/30"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div>
+                    <h4 className="font-bold text-white">{testimonial.name}</h4>
+                    <p className="text-xs text-gray-500">{testimonial.role}</p>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>

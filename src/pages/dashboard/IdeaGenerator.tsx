@@ -1,7 +1,9 @@
 import { useState, FormEvent } from 'react';
-import { Loader2, Sparkles, Copy, Check } from 'lucide-react';
+import { Loader2, Sparkles, Copy, Check, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
 import { generateIdeas } from '../../services/geminiService';
+import { useSearch } from '../../context/SearchContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function IdeaGenerator() {
   const [niche, setNiche] = useState('');
@@ -10,15 +12,31 @@ export default function IdeaGenerator() {
   const [ideas, setIdeas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const { addToHistory } = useSearch();
+  const { updateBalance } = useAuth();
 
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const result = await generateIdeas(niche, platform, goal);
-      if (result) setIdeas(result);
+      const response = await generateIdeas(niche, platform, goal);
+      if (response && response.ideas) {
+        setIdeas(response.ideas);
+        if (response.newBalance !== undefined) {
+          updateBalance(response.newBalance);
+        }
+        // Save to history
+        response.ideas.forEach((idea: any) => {
+          addToHistory({
+            type: 'idea',
+            title: idea.title,
+            content: idea.description,
+          });
+        });
+      }
     } catch (error) {
       console.error(error);
+      alert('Erreur lors de la génération. Vérifiez votre solde.');
     } finally {
       setLoading(false);
     }
@@ -28,6 +46,12 @@ export default function IdeaGenerator() {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'text-green-400 bg-green-500/10 border-green-500/20';
+    if (score >= 70) return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+    return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
   };
 
   return (
@@ -113,14 +137,19 @@ export default function IdeaGenerator() {
               <div className="flex justify-between items-start gap-4">
                 <div>
                   <h3 className="font-bold text-lg text-white mb-1">{idea.title}</h3>
-                  <p className="text-gray-400 text-sm">{idea.description}</p>
+                  <p className="text-gray-400 text-sm mb-2">{idea.description}</p>
+                  {idea.trendSource && (
+                    <div className="flex items-center gap-2 text-xs text-purple-400 bg-purple-500/10 px-2 py-1 rounded w-fit border border-purple-500/20">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Tendance : {idea.trendSource}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${
-                    idea.viralScore > 80 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
-                  }`}>
-                    Score: {idea.viralScore}
-                  </span>
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-bold border ${getScoreColor(idea.viralScore)}`}>
+                    <TrendingUp className="w-3 h-3" />
+                    {idea.viralScore}/100
+                  </div>
                   <button
                     onClick={() => copyToClipboard(`${idea.title}\n${idea.description}`, i)}
                     className="p-2 rounded-lg bg-zinc-800 text-gray-400 hover:text-white hover:bg-zinc-700 transition-colors"

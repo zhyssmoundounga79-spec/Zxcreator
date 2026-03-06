@@ -2,21 +2,39 @@ import { useState, FormEvent } from 'react';
 import { Loader2, Image as ImageIcon, Palette, Type, Smile } from 'lucide-react';
 import { motion } from 'motion/react';
 import { generateThumbnails } from '../../services/geminiService';
+import { useSearch } from '../../context/SearchContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ThumbnailGenerator() {
   const [topic, setTopic] = useState('');
   const [niche, setNiche] = useState('');
   const [thumbnails, setThumbnails] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const { addToHistory } = useSearch();
+  const { updateBalance } = useAuth();
 
   const handleGenerate = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const result = await generateThumbnails(topic, niche);
-      if (result) setThumbnails(result);
+      const response = await generateThumbnails(topic, niche);
+      if (response && response.thumbnails) {
+        setThumbnails(response.thumbnails);
+        if (response.newBalance !== undefined) {
+          updateBalance(response.newBalance);
+        }
+        // Save to history
+        response.thumbnails.forEach((thumb: any) => {
+          addToHistory({
+            type: 'thumbnail',
+            title: `Miniature: ${topic}`,
+            content: `${thumb.textOverlay} - ${thumb.visualDescription}`,
+          });
+        });
+      }
     } catch (error) {
       console.error(error);
+      alert('Erreur lors de la génération. Vérifiez votre solde.');
     } finally {
       setLoading(false);
     }
